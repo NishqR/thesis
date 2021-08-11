@@ -310,12 +310,12 @@ to update-strategies
     ;; choose new number of days and new slots
     if ( timeslots-roll > epsilon-greedy )[
 
-      if ( days-roll > epsilon-greedy ) [
+      ;;if ( days-roll > epsilon-greedy ) [
 
-        set chosen-num-days one-of num-days
+        ;;set chosen-num-days one-of num-days
 
-      ]
-      ;;set chosen-num-days one-of num-days
+      ;;]
+      ;set chosen-num-days one-of num-days
       ;;show "old timeslots"
       ;;show chosen-timeslots
 

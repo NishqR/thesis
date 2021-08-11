@@ -30,10 +30,21 @@ globals [
 
 
   sum-epsilon
+  all-epsilons
+  exploitation-count
+
+  mean-score
+  min-all-scores
+  max-all-scores
 
   continue-explore?
-  
+
   min-reward
+
+  num-agents-one-roll
+  num-agents-two-roll
+
+  setup-flag
 ]
 
 turtles-own [
@@ -45,17 +56,54 @@ turtles-own [
   weekly-score                              ;; agent's score for the week
   at-shop?                                  ;; boolean indicating whether or not agent is at shop
 
+  overcrowded-timeslots                         ;; list of timeslots during which the store was overcrowded
 ]
 
 to setup
   clear-all
+  set setup-flag true 
+  let as [1 2 3 4 5 6 7 8 9 10]
+  let cs [3 6 7 9]
+  let os []
   
+  let temp as
   
+  foreach cs [
+    x -> set x x
+    set temp remove x temp
+  ]
   
+  show "all slots"
+  show as
   
- 
+  show "temp"
+  show temp
+  
+  let ns n-of (length os) temp
+  show "new slots"
+  show ns
+  
+  foreach os[
+    x -> set x x
+    set cs remove x cs
+  ]
+  
+  show "chosen slots"
+  show cs
+    
+  foreach ns[
+    x -> set x x
+    set cs insert-item 0 cs x
+  ]
+  show "new chosen slots"
+  show cs
+
+  set mean-score 0
+  set min-all-scores 0
+  set max-all-scores 0
+  set all-epsilons []
   set min-reward 1
-  
+
   set continue-explore? true
 
   set num-days [1 2 4]
@@ -122,14 +170,16 @@ to setup
 
     set chosen-num-days one-of num-days
 
+    set overcrowded-timeslots []
 
   ]
 
   update-strategies
-
+  set num-agents-one-roll 0
+  set num-agents-two-roll 0
   ;; show agent-scores
 
-
+  set setup-flag false
   reset-ticks
 
 end
@@ -138,26 +188,35 @@ end
 
 to go
 
-  
+
   if ( current-time-period-index > 27 ) [
 
-    set current-time-period-index 0 
+    set current-time-period-index 0
 
     set agent-scores table:make
-    
+
     ask turtles [
 
       table:put agent-scores who weekly-score
 
       set all-scores insert-item 0 all-scores weekly-score
 
+
+
     ]
 
-    let min-score min all-scores
-    let max-score max all-scores
+    ;;show sort-by < all-scores
 
-    ;;let min-score 0
-    ;;let max-score 5
+
+    ;;let min-score min all-scores
+    ;;let max-score max all-scores
+    set mean-score mean all-scores
+    set min-all-scores min all-scores
+    set max-all-scores max all-scores
+
+
+    let min-score 0
+    let max-score 4
 
     ;;show "min"
     ;;show min all-scores
@@ -174,18 +233,23 @@ to go
       ;;show weekly-score
       ;;show "epsilon-greedy"
       ;;show epsilon-greedy
-
+      set all-epsilons insert-item 0 all-epsilons epsilon-greedy
       set weekly-score 0
     ]
-
+    ;;show sort-by < all-epsilons
+    set exploitation-count 0
     let epsilon-values []
     ask turtles [
       set epsilon-values insert-item 0 epsilon-values epsilon-greedy
 
+      if epsilon-greedy >= 1 [
+        set exploitation-count exploitation-count + 1
+      ]
     ]
+    ;;show exploitation-count
 
     set sum-epsilon sum epsilon-values
-    show sum-epsilon
+    ;;show sum-epsilon
 
     if sum-epsilon >= 100 [
       set continue-explore? false
@@ -204,24 +268,24 @@ to go
     let attendance-counts n-values 28 [0]
     foreach periods-of-the-day [
       x -> set x x
-      
+
       ask turtles [
         if member? x chosen-timeslots [
-          
+
           let position-of-timeslot position x periods-of-the-day
 
           let new-item item position-of-timeslot attendance-counts + 1
 
           set attendance-counts replace-item position-of-timeslot attendance-counts new-item
 
-          
+
         ]
       ]
     ]
 
     ;;show periods-of-the-day
     ;;show attendance-counts
-    
+
     ;;set min-reward min attendance-counts
     ;;show min-reward
   ]
@@ -259,9 +323,12 @@ to go
     ask turtles[
       if at-shop? [
         ifelse crowded? [
-          
+          set overcrowded-timeslots insert-item 0 overcrowded-timeslots current-time-period
+          ;;show who
+          ;;show overcrowded-timeslots
         ]
         [
+          ;;let reward 1 / attendance
           let reward 1 +  ( ( ( attendance - overcrowding-threshold ) * ( 10 - 1 ) ) / ( min-reward - overcrowding-threshold ) )
           set weekly-score weekly-score + reward
         ]
@@ -278,174 +345,216 @@ to go
 end
 
 to update-strategies
-
+  
+  set num-agents-one-roll 0
+  set num-agents-two-roll 0
+ 
 
   ask turtles[
 
-    let days-roll random-float 1
-    let timeslots-roll random-float 1
+    
 
 
+    if (length overcrowded-timeslots <= 2) and (setup-flag false)[
+      let temp-all-slots periods-of-the-day
 
-    ;; choose new number of days and new slots
-    if ( timeslots-roll > epsilon-greedy )[
+      foreach chosen-timeslots[
+        x -> set x x
+        set temp-all-slots remove x temp-all-slots
+      ]
 
-      if ( days-roll > epsilon-greedy ) [
+      let new-slots n-of (length overcrowded-timeslots) temp-all-slots
 
-        set chosen-num-days one-of num-days
+      show "old-timeslots"
+      show chosen-timeslots
+
+      show "overcrowded-timeslots"
+      show overcrowded-timeslots
+
+
+      foreach overcrowded-timeslots[
+        x -> set x x
+        set chosen-timeslots remove x chosen-timeslots
+      ]
+
+      foreach new-slots[
+        x -> set x x 
+        set chosen-timeslots insert-item 0 chosen-timeslots x
+      ]
+
+      show "new slots"
+      show chosen-timeslots
+
+
+    ]
+
+    if (length overcrowded-timeslots > 2) or (setup-flag true) [
+      let days-roll random-float 1
+      let timeslots-roll random-float 1
+      
+
+      ;; choose new number of days and new slots
+      if ( timeslots-roll > epsilon-greedy )[
+
+        set num-agents-one-roll num-agents-one-roll + 1
+        if ( days-roll > epsilon-greedy ) [
+
+          set chosen-num-days one-of num-days
+          set num-agents-two-roll num-agents-two-roll + 1
+
+        ]
+        
+
+        if chosen-num-days = 1[
+
+          let day-chosen []
+          set day-chosen insert-item 0 day-chosen one-of days-of-the-week
+
+          ;;show day-chosen
+
+          set chosen-timeslots append-words day-chosen time-periods
+
+
+          set chosen-timeslots first chosen-timeslots
+
+          ;;show chosen-timeslots
+
+        ]
+
+        if chosen-num-days = 2[
+
+          let days-chosen []
+
+          set days-chosen first insert-item 0 days-chosen n-of 2 days-of-the-week
+
+          ;;let first-day-chosen one-of days-of-the-week
+          ;;set days-chosen insert-item 0 days-chosen first-day-chosen
+          ;;let day-position position first-day-chosen days-of-the-week
+          ;;let remaining-days remove-item day-position days-of-the-week
+          ;;set days-chosen insert-item 0 days-chosen one-of remaining-days
+
+          ;;show days-chosen
+
+          let first-day-time-periods n-of 2 time-periods
+          let second-day-time-periods n-of 2 time-periods
+
+
+          let first-day-chosen []
+          set first-day-chosen insert-item 0 first-day-chosen first days-chosen
+
+          let second-day-chosen []
+          set second-day-chosen insert-item 0 second-day-chosen item 1 days-chosen
+
+          ;;show "-----------------"
+          ;;show first-day-chosen
+          ;;show second-day-chosen
+          ;;show "-----------------"
+
+          let first-day-time-slots append-words first-day-chosen first-day-time-periods
+          let second-day-time-slots append-words second-day-chosen second-day-time-periods
+
+
+          set first-day-time-slots first first-day-time-slots
+          set second-day-time-slots first second-day-time-slots
+
+          ;;show "----------------"
+          ;;show first-day-time-slots
+          ;;show second-day-time-slots
+
+
+          set chosen-timeslots sentence first-day-time-slots second-day-time-slots
+
+          ;;show chosen-timeslots
+
+          ;;show "---------------"
+
+        ]
+
+        if chosen-num-days = 4 [
+
+          let days-chosen []
+
+          set days-chosen first insert-item 0 days-chosen n-of 4 days-of-the-week
+
+          ;;show days-chosen
+
+          let first-day-time-period []
+          set first-day-time-period insert-item 0 first-day-time-period one-of time-periods
+          let second-day-time-period []
+          set second-day-time-period insert-item 0 second-day-time-period one-of time-periods
+          let third-day-time-period []
+          set third-day-time-period insert-item 0 third-day-time-period one-of time-periods
+          let fourth-day-time-period []
+          set fourth-day-time-period insert-item 0 fourth-day-time-period one-of time-periods
+
+
+          ;;let first-day-time-period one-of time-periods
+          ;;let second-day-time-period one-of time-periods
+          ;;let third-day-time-period one-of time-periods
+          ;;let fourth-day-time-period one-of time-periods
+
+          ;; show "-----------------"
+          ;;show first-day-time-period
+          ;;show second-day-time-period
+          ;;show third-day-time-period
+          ;;show fourth-day-time-period
+          ;;show "-----------------"
+
+          let first-day-chosen []
+          let second-day-chosen []
+          let third-day-chosen []
+          let fourth-day-chosen []
+
+          set first-day-chosen insert-item 0 first-day-chosen first days-chosen
+          set second-day-chosen insert-item 0 second-day-chosen item 1 days-chosen
+          set third-day-chosen insert-item 0 third-day-chosen item 2 days-chosen
+          set fourth-day-chosen insert-item 0 fourth-day-chosen item 3 days-chosen
+
+          ;;show "-----------------"
+          ;;show first-day-chosen
+          ;;show second-day-chosen
+          ;;show third-day-chosen
+          ;;show fourth-day-chosen
+          ;;show "-----------------"
+
+          let first-day-time-slots append-words first-day-chosen first-day-time-period
+          let second-day-time-slots append-words second-day-chosen second-day-time-period
+          let third-day-time-slots append-words third-day-chosen third-day-time-period
+          let fourth-day-time-slots append-words fourth-day-chosen fourth-day-time-period
+
+          set first-day-time-slots first first-day-time-slots
+          set second-day-time-slots first second-day-time-slots
+          set third-day-time-slots first third-day-time-slots
+          set fourth-day-time-slots first fourth-day-time-slots
+
+          ;;show "----------------"
+          ;;show first-day-time-slots
+          ;;show second-day-time-slots
+          ;;show third-day-time-slots
+          ;;show fourth-day-time-slots
+
+          let time-slots-1 sentence first-day-time-slots second-day-time-slots
+          let time-slots-2 sentence third-day-time-slots fourth-day-time-slots
+          set chosen-timeslots sentence time-slots-1 time-slots-2
+
+          ;;show chosen-timeslots
+
+          ;;show "---------------"
+        ]
+
+       
+
 
       ]
 
-      ;;show "old timeslots"
-      ;;show chosen-timeslots
-
-      if chosen-num-days = 1[
-
-      let day-chosen []
-      set day-chosen insert-item 0 day-chosen one-of days-of-the-week
-
-      ;;show day-chosen
-
-      set chosen-timeslots append-words day-chosen time-periods
-
-
-      set chosen-timeslots first chosen-timeslots
-
-      ;;show chosen-timeslots
-
     ]
-
-    if chosen-num-days = 2[
-
-      let days-chosen []
-
-      set days-chosen first insert-item 0 days-chosen n-of 2 days-of-the-week
-
-      ;;let first-day-chosen one-of days-of-the-week
-      ;;set days-chosen insert-item 0 days-chosen first-day-chosen
-      ;;let day-position position first-day-chosen days-of-the-week
-      ;;let remaining-days remove-item day-position days-of-the-week
-      ;;set days-chosen insert-item 0 days-chosen one-of remaining-days
-
-      ;;show days-chosen
-
-      let first-day-time-periods n-of 2 time-periods
-      let second-day-time-periods n-of 2 time-periods
-
-
-      let first-day-chosen []
-      set first-day-chosen insert-item 0 first-day-chosen first days-chosen
-
-      let second-day-chosen []
-      set second-day-chosen insert-item 0 second-day-chosen item 1 days-chosen
-
-      ;;show "-----------------"
-      ;;show first-day-chosen
-      ;;show second-day-chosen
-      ;;show "-----------------"
-
-      let first-day-time-slots append-words first-day-chosen first-day-time-periods
-      let second-day-time-slots append-words second-day-chosen second-day-time-periods
-
-
-      set first-day-time-slots first first-day-time-slots
-      set second-day-time-slots first second-day-time-slots
-
-      ;;show "----------------"
-      ;;show first-day-time-slots
-      ;;show second-day-time-slots
-
-
-      set chosen-timeslots sentence first-day-time-slots second-day-time-slots
-
-      ;;show chosen-timeslots
-
-      ;;show "---------------"
-
-    ]
-
-    if chosen-num-days = 4 [
-
-      let days-chosen []
-
-      set days-chosen first insert-item 0 days-chosen n-of 4 days-of-the-week
-
-      ;;show days-chosen
-
-      let first-day-time-period []
-      set first-day-time-period insert-item 0 first-day-time-period one-of time-periods
-      let second-day-time-period []
-      set second-day-time-period insert-item 0 second-day-time-period one-of time-periods
-      let third-day-time-period []
-      set third-day-time-period insert-item 0 third-day-time-period one-of time-periods
-      let fourth-day-time-period []
-      set fourth-day-time-period insert-item 0 fourth-day-time-period one-of time-periods
-
-
-      ;;let first-day-time-period one-of time-periods
-      ;;let second-day-time-period one-of time-periods
-      ;;let third-day-time-period one-of time-periods
-      ;;let fourth-day-time-period one-of time-periods
-
-      ;; show "-----------------"
-      ;;show first-day-time-period
-      ;;show second-day-time-period
-      ;;show third-day-time-period
-      ;;show fourth-day-time-period
-      ;;show "-----------------"
-
-      let first-day-chosen []
-      let second-day-chosen []
-      let third-day-chosen []
-      let fourth-day-chosen []
-
-      set first-day-chosen insert-item 0 first-day-chosen first days-chosen
-      set second-day-chosen insert-item 0 second-day-chosen item 1 days-chosen
-      set third-day-chosen insert-item 0 third-day-chosen item 2 days-chosen
-      set fourth-day-chosen insert-item 0 fourth-day-chosen item 3 days-chosen
-
-      ;;show "-----------------"
-      ;;show first-day-chosen
-      ;;show second-day-chosen
-      ;;show third-day-chosen
-      ;;show fourth-day-chosen
-      ;;show "-----------------"
-
-      let first-day-time-slots append-words first-day-chosen first-day-time-period
-      let second-day-time-slots append-words second-day-chosen second-day-time-period
-      let third-day-time-slots append-words third-day-chosen third-day-time-period
-      let fourth-day-time-slots append-words fourth-day-chosen fourth-day-time-period
-
-      set first-day-time-slots first first-day-time-slots
-      set second-day-time-slots first second-day-time-slots
-      set third-day-time-slots first third-day-time-slots
-      set fourth-day-time-slots first fourth-day-time-slots
-
-      ;;show "----------------"
-      ;;show first-day-time-slots
-      ;;show second-day-time-slots
-      ;;show third-day-time-slots
-      ;;show fourth-day-time-slots
-
-      let time-slots-1 sentence first-day-time-slots second-day-time-slots
-      let time-slots-2 sentence third-day-time-slots fourth-day-time-slots
-      set chosen-timeslots sentence time-slots-1 time-slots-2
-
-      ;;show chosen-timeslots
-
-      ;;show "---------------"
-    ]
-
-     ;;show "new time-slots"
-     ;;show chosen-timeslots
-
-
-    ]
-
-
 
   ]
 
+  ;;show " 1 switch "
+  ;;show switcheronis1
+  ;;show " 2 switch "
+  ;;show switcheronis2
 end
 
 

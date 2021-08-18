@@ -155,7 +155,7 @@ to setup
   set agent-scores table:make
 
   ;; create the agents and give them random strategies
-  create-turtles 100 [
+  create-turtles 500 [
     set color white
     set at-shop? false
 
@@ -216,7 +216,7 @@ to go
 
 
     let min-score 0
-    let max-score 20
+    let max-score 4
 
     ;;show "min"
     ;;show min all-scores
@@ -677,7 +677,7 @@ overcrowding-threshold
 overcrowding-threshold
 0
 100
-17.0
+77.0
 1
 1
 NIL

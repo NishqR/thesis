@@ -38,6 +38,8 @@ globals [
   min-all-scores                            ;; minimum of all agent scores
   max-all-scores                            ;; maximum of all agent scores
 
+  mean-attendance
+
   min-reward                                ;; minimum reward
 
   num-agents-one-roll                       ;; number of agents that roll once
@@ -71,6 +73,8 @@ to setup
   set min-all-scores 0
   set max-all-scores 0
   set min-reward 1
+
+  set mean-attendance 0
 
   set all-epsilons []
 
@@ -122,7 +126,7 @@ to setup
   set agent-scores table:make
 
   ;; create the agents and give them random strategies
-  create-turtles 500 [
+  create-turtles num-agents [
     set color white
     set at-shop? false
 
@@ -158,6 +162,8 @@ to go
   ;; if the previous week has elapsed
   if ( current-time-period-index > 111 ) [
 
+    show "a week has elapsed"
+
     ;; reset the time period index back to 0
     set current-time-period-index 0
 
@@ -182,8 +188,8 @@ to go
     set max-all-scores max all-scores
 
     ;; set the minimum and maximum scores for the epsilon parameter
-    let min-score 0
-    let max-score 4
+    ;;let min-score 0
+    ;;let max-score 10
 
     ;; re-initialize the list of all scores
     set all-scores []
@@ -226,16 +232,27 @@ to go
   ;; if we are running for the first time / beginning of the week
   if ( current-time-period-index = 0 ) [
 
+    show "beginning of the week"
+
     ;; create a list of 0s for the attendance counts for each timeslot
     let attendance-counts n-values 112 [0]
 
-    ;; loop over all the periods of the day and add the attendance counts
-    foreach periods-of-the-day [
-      x -> set x x
+    let turtle-count 0
+    let slot-count 0
 
-      ask turtles [
+    ask turtles [
+      
+      set turtle-count turtle-count + 1
+
+      let period-count 0
+      ;; loop over all the periods of the day and add the attendance counts
+      foreach periods-of-the-day [
+        x -> set x x
+
+        set period-count period-count + 1
         if member? x chosen-timeslots [
 
+          set slot-count slot-count + 1
           let position-of-timeslot position x periods-of-the-day
 
           let new-item item position-of-timeslot attendance-counts + 1
@@ -245,7 +262,18 @@ to go
 
         ]
       ]
+
+      ;;show period-count
     ]
+
+    set mean-attendance mean attendance-counts
+    ;;ask turtles[
+    ;;  show chosen-timeslots
+    ;;]
+    show periods-of-the-day
+    show attendance-counts
+    show turtle-count
+    show slot-count
   ]
 
   ;; during the week
@@ -389,7 +417,7 @@ to update-strategies-28slots
 
           set chosen-timeslots first chosen-timeslots
 
-          show chosen-timeslots
+          ;;show chosen-timeslots
 
         ]
 
@@ -530,9 +558,13 @@ to update-strategies-28slots
 end
 
 to update-strategies-112slots
+
+  set num-agents-one-roll 0
+  set num-agents-two-roll 0
+
   ask turtles[
 
-    if (length overcrowded-timeslots <= 2) and (setup-flag = false)[
+    if (length overcrowded-timeslots <= 0) and (setup-flag = false)[
       let temp-all-slots periods-of-the-day
 
       foreach chosen-timeslots[
@@ -565,16 +597,17 @@ to update-strategies-112slots
 
     ]
 
-    if (length overcrowded-timeslots > 2) or (setup-flag = true) [
+    if (length overcrowded-timeslots > 0) or (setup-flag = true) [
+
       let days-roll random-float 1
       let timeslots-roll random-float 1
 
 
       ;; choose new number of days and new slots
-      if ( timeslots-roll > epsilon-greedy )[
+      if ( timeslots-roll >= epsilon-greedy )[
 
         set num-agents-one-roll num-agents-one-roll + 1
-        if ( days-roll > epsilon-greedy ) [
+        if ( days-roll >= epsilon-greedy ) [
 
           set chosen-num-days one-of num-days
           set num-agents-two-roll num-agents-two-roll + 1
@@ -601,7 +634,7 @@ to update-strategies-112slots
 
           set chosen-timeslots append-words day-chosen time-periods-chosen
 
-          
+          ;;show chosen-timeslots
         ]
 
         if chosen-num-days = 2 [

@@ -5,12 +5,6 @@ globals [
 
   attendance                                ;; current attendance at the shop
 
-  ;; tables
-  ;;agent-scores                              ;; table of agent and their associated scores
-
-  ;; lists
-  all-scores                                ;; list of all the weekly scores of each agent
-
   ;; time slot related globals
   num-trips                                  ;; list of different number of days agents can complete their quota in
   days-of-the-week                          ;; list of days of the week
@@ -18,6 +12,8 @@ globals [
   periods-of-the-day                        ;; list of time periods of the day
   current-time-period                       ;; current time period
   current-time-period-index
+  num-overcrowded-timeslots                 ;; number of overcrowded timeslots
+  num-overcrowded-timeslots-temp
 
   ;; patch-related globals
   home-patches                              ;; agentset of green patches representing the residential area
@@ -25,39 +21,37 @@ globals [
   crowded-patch                             ;; patch where we show the "CROWDED" label
   crowded?
 
-
-  sum-epsilon                               ;; sum of all agents' epsilon values
-  min-epsilon                               ;; minimum of all agents' epsilon values
-  max-epsilon                               ;; maximum of all agents' epsilon values
-  avg-epsilon                               ;; average of all agents' epsilon values
-  all-epsilons                              ;; list of all epsilon values
-  unique-epsilons
-
-
-  exploitation-count                        ;; count of all agents that are exploiting
-
-  mean-score                                ;; average score
+  ;; agent-related globals
+  all-scores                                ;; list of all the weekly scores of each agent
   min-all-scores                            ;; minimum of all agent scores
   max-all-scores                            ;; maximum of all agent scores
-  unique-scores
-  mean-attendance
+  mean-score                                ;; average score
+  unique-scores                             ;; Count of the number of unique scores
 
-  ;;min-reward                                ;; minimum reward
+  all-epsilons                              ;; list of all epsilon values
+  min-epsilon                               ;; minimum of all agents' epsilon values
+  max-epsilon                               ;; maximum of all agents' epsilon values
+  mean-epsilon                              ;; average of all agents' epsilon values
+  unique-epsilons                           ;; Count of the number of unique epsilon values
+  sum-epsilon                               ;; sum of all agents' epsilon values
+
+  ;; derived globals
+  exploitation-count                        ;; count of all agents that are exploiting
+  mean-attendance
 
   num-agents-one-roll                       ;; number of agents that roll once
   num-agents-two-roll                       ;; number of agents that roll twice
 
-  count-swapped-one-roll
-  count-swapped-two-roll
-
-
-  setup-flag                                ;; setup flag that is used to check if the setup is complete
-  ;;continue-explore?                         ;; flag to check whether agents should continue exploring
+  count-swapped-one-roll                    ;; total number of agents that roll once
+  count-swapped-two-roll                    ;; total number of agents that roll twice
 
   overcrowded-agent                         ;; number of agents with at least one overcrowded timeslot
 
-  num-overcrowded-timeslots                 ;; number of overcrowded timeslots
-  num-overcrowded-timeslots-temp
+
+  ;; flags
+  setup-flag                                ;; setup flag that is used to check if the setup is complete
+
+
 
 ]
 
@@ -70,9 +64,9 @@ turtles-own [
   weekly-score                              ;; agent's score for the week
   at-shop?                                  ;; boolean indicating whether or not agent is at shop
   overcrowded-timeslots                     ;; list of timeslots during which the store was overcrowded
-  home-patch
-  changed-timeslots-one-roll                         ;; temp
-  changed-timeslots-two-roll
+  home-patch                                ;; designated home patch for each agent
+  changed-timeslots-one-roll                ;; boolean that is set to true if an agent has ever switched timeslots
+  changed-timeslots-two-roll                ;; boolean that is set to true if an agent has even swtiched both timeslots and total trips
 
 ]
 
@@ -80,17 +74,15 @@ to setup
   clear-all
 
   ;; initializing variables
-  set count-swapped-one-roll 0
-  set count-swapped-two-roll 0
-
   set setup-flag true
-  ;;set continue-explore? true
+
 
   set mean-score 0
   set min-all-scores 0
   set max-all-scores 0
   set unique-scores 0
-  ;;set min-reward 1
+  set count-swapped-one-roll 0
+  set count-swapped-two-roll 0
 
   set mean-attendance 0
 
@@ -172,19 +164,23 @@ to setup
 
     set overcrowded-timeslots []
 
+
+
   ]
+
 
   update-strategies-112slots
   ;;update-strategies-28slots
+
   set num-agents-one-roll 0
   set num-agents-two-roll 0
+
+  set setup-flag false
+
   ask turtles [
     set changed-timeslots-one-roll false
     set changed-timeslots-two-roll false
   ]
-  ;; show agent-scores
-
-  set setup-flag false
   reset-ticks
 
 end
@@ -196,34 +192,21 @@ to go
   ;; if the previous week has elapsed
   if ( current-time-period-index > 111 ) [
 
-    set overcrowded-agent 0
-    ;;show "a week has elapsed"
-
-    ;;if ( ( exploitation-count / num-agents ) = 1 )[
-    ;;  stop
-    ;;]
-
     ;; reset the time period index back to 0
     set current-time-period-index 0
 
     set num-overcrowded-timeslots num-overcrowded-timeslots-temp
     set num-overcrowded-timeslots-temp 0
 
-    ;; create a table of all the agents' scores
-    ;;set agent-scores table:make
+    set overcrowded-agent 0
+
     ask turtles [
 
       if length overcrowded-timeslots > 0 [
         set overcrowded-agent overcrowded-agent + 1
       ]
 
-      ;;table:put agent-scores who weekly-score
-
-      ;;set all-scores insert-item 0 all-scores weekly-score
-
     ]
-
-    ;;show overcrowded-agent
 
     ;; re-initialize the list of all scores
     set all-scores []
@@ -236,22 +219,11 @@ to go
     ]
 
 
-    ;;show sort-by < all-scores
-
-    ;;let min-score min all-scores
-    ;;let max-score max all-scores
-
     ;; calculate the average, minimum and maximum score
     set mean-score mean all-scores
     set min-all-scores min all-scores
     set max-all-scores max all-scores
-
     set unique-scores length ( remove-duplicates all-scores )
-
-    ;; set the minimum and maximum scores for the epsilon parameter
-    ;;let min-score 0
-    ;;let max-score 10
-
 
     ;; set each agent's epsilon value
     ask turtles [
@@ -260,18 +232,18 @@ to go
       if adaptive? [
 
         if epsilon-function = "base" [
-          set epsilon-greedy ( ( weekly-score - min-score ) / ( max-score - min-score ) )
+          set epsilon-greedy ( ( weekly-score - min-score ) / ( ideal-score - min-score ) )
           ;;set epsilon-greedy ( ( weekly-score - min-all-scores ) / ( max-all-scores - min-all-scores ) )
         ]
 
         if epsilon-function = "fractional exponent" [
-          set epsilon-greedy ( ( weekly-score - min-score ) ^ factor / ( max-score - min-score ) ^ factor )
-          ;;set epsilon-greedy ( ( weekly-score - min-all-scores ) ^ 0.5 / ( max-all-scores - min-all-scores ) ^ 0.5 )
+          set epsilon-greedy ( ( weekly-score - min-score ) ^ c / ( ideal-score - min-score ) ^ c )
+          ;;set epsilon-greedy ( ( weekly-score - min-all-scores ) ^ c / ( max-all-scores - min-all-scores ) ^ c)
         ]
 
         if epsilon-function = "exponent" [
-          set epsilon-greedy ( ( weekly-score - min-score ) ^ factor / ( max-score - min-score ) ^ factor )
-          ;;set epsilon-greedy ( ( weekly-score - min-all-scores ) ^ 2 / ( max-all-scores - min-all-scores ) ^ 2 )
+          set epsilon-greedy ( ( weekly-score - min-score ) ^ c / ( ideal-score - min-score ) ^ c )
+          ;;set epsilon-greedy ( ( weekly-score - min-all-scores ) ^ c / ( max-all-scores - min-all-scores ) ^ c )
         ]
 
         if epsilon-function = "log" [
@@ -280,40 +252,20 @@ to go
             set epsilon-greedy 0
           ]
           [
-            set epsilon-greedy ( ( log ( factor * ( weekly-score - min-score ) ) 10 ) / ( log ( factor * ( max-score - min-score ) ) 10 ) )
-            ;;set epsilon-greedy ( ( log ( 4 * ( weekly-score - min-all-scores ) ) 10 ) / ( log ( 4 * ( max-all-scores - min-all-scores ) ) 10 ) )
+            set epsilon-greedy ( ( log ( c * ( weekly-score - min-score ) ) 10 ) / ( log ( c * ( ideal-score - min-score ) ) 10 ) )
+            ;;set epsilon-greedy ( ( log ( c * ( weekly-score - min-all-scores ) ) 10 ) / ( log ( c * ( max-all-scores - min-all-scores ) ) 10 ) )
           ]
         ]
 
         if epsilon-function = "sigmoid" [
-          set epsilon-greedy ( 1 / ( 1 + ( e ^ ( - factor * ( weekly-score - ( ( max-score - min-score ) / 2 ) ) ) ) ) )
-          ;;set epsilon-greedy ( 1 / ( 1 + ( e ^ ( - 0.25 * ( weekly-score - ( ( max-all-scores - min-all-scores ) / 2 ) ) ) ) ) )
+          ;;set epsilon-greedy ( 1 / ( 1 + ( e ^ ( - c * ( weekly-score - ( ( ideal-score - min-score ) / 2 ) ) ) ) ) )
+          set epsilon-greedy ( 1 / ( 1 + ( e ^ ( - c * ( weekly-score - ( ( max-all-scores - min-all-scores ) / 2 ) ) ) ) ) )
           ;;show "sigmoid"
         ]
 
-
-
-        ;; OG FUNCTION
-        ;;set epsilon-greedy ( ( weekly-score - min-score ) / ( max-score - min-score ) )
-
-        ;; FRACTIONAL EXPONENT
-        ;;set epsilon-greedy ( ( weekly-score - min-score ) ^ 0.5 / ( max-score - min-score ) ^ 0.5 )
-
-        ;; EXPONENT
-        ;;set epsilon-greedy ( ( weekly-score - min-score ) ^ 2 / ( max-score - min-score ) ^ 2 )
-
-        ;; LOGARITHMIC
-        ;;ifelse ( weekly-score - min-score ) <= 10 [
-        ;;  set epsilon-greedy 0
-        ;;]
-        ;;[
-        ;;  set epsilon-greedy ( ( log ( 4 * ( weekly-score - min-score ) ) 10 ) / ( log ( 4 * ( max-score - min-score ) ) 10 ) )
-        ;;]
-
-        ;; SIGMOID
-        ;;set epsilon-greedy ( 1 / ( 1 + ( e ^ ( - 0.25 * ( weekly-score - ( ( max-score - min-score ) / 2 ) ) ) ) ) )
-
-
+        if epsilon-greedy > 1[
+          set epsilon-greedy 1
+        ]
         set all-epsilons insert-item 0 all-epsilons epsilon-greedy
         set weekly-score 0
       ]
@@ -322,23 +274,18 @@ to go
       ]
     ]
 
+    set mean-epsilon mean all-epsilons
     set min-epsilon min all-epsilons
     set max-epsilon max all-epsilons
-    set avg-epsilon mean all-epsilons
     set unique-epsilons length ( remove-duplicates all-epsilons)
     ;;show all-epsilons
-    ;;show min-epsilon
-    ;;show max-epsilon
 
     ask turtles [
       set color scale-color red (max-epsilon - epsilon-greedy) (min-epsilon - 1.9) max-epsilon
     ]
 
-
-
     ;; count the number of agents that are exploiting
     set exploitation-count 0
-    ;;let epsilon-values []
     ask turtles [
       ;;set epsilon-values insert-item 0 epsilon-values epsilon-greedy
 
@@ -347,23 +294,11 @@ to go
       ]
     ]
 
-    ;;show max epsilon-values
-
-
     ;; calculate the sum of all the epsilon values
     set sum-epsilon sum all-epsilons
 
 
-    ;;if sum-epsilon >= 100 [
-    ;;  set continue-explore? false
-    ;;]
-
-    ;;if continue-explore? = true [
-    ;;  update-strategies
-    ;;]
-
     update-strategies-112slots
-    ;;set explore-exploit-ratio ( num-agents - num-agents-one-roll ) / num-agents-one-roll
     ;;update-strategies-28slots
 
     set count-swapped-one-roll count turtles with [changed-timeslots-one-roll = true]
@@ -373,42 +308,16 @@ to go
   ;; if we are running for the first time / beginning of the week
   if ( current-time-period-index = 0 ) [
 
-    ;;show "beginning of the week"
-
     ;; create a list of 0s for the attendance counts for each timeslot
     let attendance-counts n-values 112 [0]
 
-   ;; let turtle-count 0
-   ;; let slot-count 0
-
     ask turtles [
 
-      ;;set turtle-count turtle-count + 1
-
-      ;;let period-count 0
       ;; loop over all the periods of the day and add the attendance counts
       foreach periods-of-the-day [
         x -> set x x
 
-        ;;set period-count period-count + 1
-
-        ;;foreach chosen-timeslots[
-        ;;  y -> set y y
-
-        ;;  if x = y [
-
-       ;;     set slot-count slot-count + 1
-       ;;     let position-of-timeslot position x periods-of-the-day
-
-         ;;   let new-item item position-of-timeslot attendance-counts + 1
-
-           ;; set attendance-counts replace-item position-of-timeslot attendance-counts new-item
-
-         ;; ]
-       ;; ]
         if member? x chosen-timeslots [
-
-         ;; set slot-count slot-count + 1
 
           let position-of-timeslot position x periods-of-the-day
 
@@ -416,22 +325,13 @@ to go
 
           set attendance-counts replace-item position-of-timeslot attendance-counts new-item
 
-
         ]
       ]
       set overcrowded-timeslots []
-      ;;show period-count
     ]
 
 
     set mean-attendance mean attendance-counts
-    ;;ask turtles[
-    ;;  show chosen-timeslots
-    ;;]
-   ;; show periods-of-the-day
-   ;; show attendance-counts
-    ;;show turtle-count
-    ;;show slot-count
 
   ]
 
@@ -439,6 +339,7 @@ to go
   if ( current-time-period-index <= 111 ) [
 
     set attendance 0
+
     ;; set the current time period
     set current-time-period item current-time-period-index periods-of-the-day
 
@@ -472,6 +373,7 @@ to go
 
     ;; if the bar is crowded indicate that in the view
     set attendance count turtles-on shop-patches
+
     if attendance > overcrowding-threshold [
 
       set num-overcrowded-timeslots-temp num-overcrowded-timeslots-temp + 1
@@ -489,15 +391,9 @@ to go
         ;; if its crowded, add this slot to their individual list of overcrowded timeslots
         ifelse crowded? [
           set overcrowded-timeslots insert-item 0 overcrowded-timeslots current-time-period
-
-          ;;if agent-chosen-flag = false
-          ;;[
-            ;;set overcrowded-agent overcrowded-agent + 1
-            ;;set agent-chosen-flag true
-          ;;]
         ]
 
-        ;; if it isnt crowded, update their weekly score as a function of the current attendance
+        ;; Update the weekly score as a function of the current attendance
         [
           let reward ( 1 / attendance ) * 100
           ;;let reward 1 +  ( ( ( attendance - overcrowding-threshold ) * ( 10 - 1 ) ) / ( min-reward - overcrowding-threshold ) )
@@ -1109,7 +1005,7 @@ true
 "" ""
 PENS
 "switched slots" 1.0 0 -13791810 true "" "plot num-agents-one-roll"
-"switched slots and num-days" 1.0 0 -955883 true "" "plot num-agents-two-roll"
+"switched slots and trip configurations" 1.0 0 -955883 true "" "plot num-agents-two-roll"
 
 MONITOR
 1620
@@ -1164,7 +1060,7 @@ INPUTBOX
 400
 193
 460
-max-score
+ideal-score
 23.0
 1
 0
@@ -1184,10 +1080,10 @@ adaptive?
 MONITOR
 1620
 15
-1690
+1702
 60
 NIL
-avg-epsilon
+mean-epsilon
 4
 1
 11
@@ -1197,7 +1093,7 @@ PLOT
 15
 1155
 235
-avg-epsilon
+mean-epsilon
 NIL
 NIL
 0.0
@@ -1208,7 +1104,7 @@ true
 false
 "" ""
 PENS
-"default" 1.0 0 -16777216 true "" "plot avg-epsilon\n"
+"default" 1.0 0 -16777216 true "" "plot mean-epsilon\n"
 
 CHOOSER
 24
@@ -1218,12 +1114,12 @@ CHOOSER
 epsilon-function
 epsilon-function
 "base" "fractional exponent" "exponent" "log" "sigmoid"
-4
+3
 
 MONITOR
 1620
 70
-1690
+1700
 115
 NIL
 min-epsilon
@@ -1243,9 +1139,9 @@ max-epsilon
 11
 
 MONITOR
-1700
+1710
 15
-1805
+1815
 60
 exploitation-ratio
 ( num-agents - num-agents-one-roll ) / num-agents
@@ -1254,9 +1150,9 @@ exploitation-ratio
 11
 
 MONITOR
-1700
+1710
 70
-1805
+1815
 115
 exploration-ratio
 num-agents-one-roll / num-agents
@@ -1338,7 +1234,7 @@ INPUTBOX
 260
 192
 320
-factor
+c
 0.25
 1
 0
@@ -1422,7 +1318,7 @@ PLOT
 700
 1975
 890
-plot 1
+Overcrowded time slots over time
 NIL
 NIL
 0.0
@@ -1892,17 +1788,17 @@ NetLogo 6.1.1
       <value value="17"/>
     </enumeratedValueSet>
   </experiment>
-  <experiment name="final_experiment" repetitions="1000" runMetricsEveryStep="true">
+  <experiment name="final_experiment" repetitions="10" runMetricsEveryStep="true">
     <setup>setup</setup>
     <go>go</go>
-    <timeLimit steps="3000"/>
+    <timeLimit steps="4000"/>
     <metric>attendance</metric>
     <metric>exploitation-count</metric>
     <metric>mean-score</metric>
     <metric>min-all-scores</metric>
     <metric>max-all-scores</metric>
     <metric>unique-scores</metric>
-    <metric>avg-epsilon</metric>
+    <metric>mean-epsilon</metric>
     <metric>min-epsilon</metric>
     <metric>max-epsilon</metric>
     <metric>unique-epsilons</metric>
@@ -1913,13 +1809,13 @@ NetLogo 6.1.1
     <metric>count-swapped-one-roll</metric>
     <metric>count-swapped-two-roll</metric>
     <enumeratedValueSet variable="epsilon-function">
-      <value value="&quot;exponent&quot;"/>
+      <value value="&quot;log&quot;"/>
     </enumeratedValueSet>
     <enumeratedValueSet variable="factor">
-      <value value="1"/>
+      <value value="0.25"/>
     </enumeratedValueSet>
   </experiment>
-  <experiment name="distrib_experiment" repetitions="100" runMetricsEveryStep="true">
+  <experiment name="distrib_experiment" repetitions="10" runMetricsEveryStep="true">
     <setup>setup</setup>
     <go>go</go>
     <timeLimit steps="3000"/>

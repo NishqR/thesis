@@ -231,20 +231,13 @@ to go
 
       if adaptive? [
 
-        if epsilon-function = "base" [
-          set epsilon-greedy ( ( weekly-score - min-score ) / ( ideal-score - min-score ) )
-          ;;set epsilon-greedy ( ( weekly-score - min-all-scores ) / ( max-all-scores - min-all-scores ) )
-        ]
 
-        if epsilon-function = "fractional exponent" [
+
+        if epsilon-function = "base" [
           set epsilon-greedy ( ( weekly-score - min-score ) ^ c / ( ideal-score - min-score ) ^ c )
           ;;set epsilon-greedy ( ( weekly-score - min-all-scores ) ^ c / ( max-all-scores - min-all-scores ) ^ c)
         ]
 
-        if epsilon-function = "exponent" [
-          set epsilon-greedy ( ( weekly-score - min-score ) ^ c / ( ideal-score - min-score ) ^ c )
-          ;;set epsilon-greedy ( ( weekly-score - min-all-scores ) ^ c / ( max-all-scores - min-all-scores ) ^ c )
-        ]
 
         if epsilon-function = "log" [
           ifelse ( weekly-score - min-score ) <= 3 [
@@ -1113,8 +1106,8 @@ CHOOSER
 245
 epsilon-function
 epsilon-function
-"base" "fractional exponent" "exponent" "log" "sigmoid"
-3
+"base" "log" "sigmoid"
+1
 
 MONITOR
 1620

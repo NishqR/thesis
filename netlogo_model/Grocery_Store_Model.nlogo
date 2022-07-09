@@ -51,6 +51,7 @@ globals [
   ;; flags
   setup-flag                                ;; setup flag that is used to check if the setup is complete
 
+  turtle-zero-epsilons
 
 
 ]
@@ -72,6 +73,8 @@ turtles-own [
 
 to setup
   clear-all
+
+  set turtle-zero-epsilons []
 
   ;; initializing variables
   set setup-flag true
@@ -114,7 +117,7 @@ to setup
   ]
 
   set periods-of-the-day reverse periods-of-the-day
-  show periods-of-the-day
+  ;;show periods-of-the-day
 
 
   ;; agent initialization
@@ -192,6 +195,7 @@ to go
   ;; if the previous week has elapsed
   if ( current-time-period-index > 111 ) [
 
+    ;;show turtle-zero-epsilons
     ;; reset the time period index back to 0
     set current-time-period-index 0
 
@@ -231,8 +235,6 @@ to go
 
       if adaptive? [
 
-
-
         if epsilon-function = "base" [
           set epsilon-greedy ( ( weekly-score - min-score ) ^ c / ( ideal-score - min-score ) ^ c )
           ;;set epsilon-greedy ( ( weekly-score - min-all-scores ) ^ c / ( max-all-scores - min-all-scores ) ^ c)
@@ -265,6 +267,10 @@ to go
       if adaptive? = false [
         set all-epsilons n-values 400 [0]
       ]
+    ]
+
+    ask turtle 0 [
+      set turtle-zero-epsilons insert-item (length turtle-zero-epsilons) turtle-zero-epsilons epsilon-greedy
     ]
 
     set mean-epsilon mean all-epsilons
@@ -819,10 +825,10 @@ to move-to-empty-one-of [locations]  ;; turtle procedure
 end
 @#$#@#$#@
 GRAPHICS-WINDOW
-210
-15
-799
-605
+410
+100
+999
+690
 -1
 -1
 17.61
@@ -846,10 +852,10 @@ ticks
 30.0
 
 BUTTON
-25
-20
-88
-53
+225
+105
+288
+138
 NIL
 setup
 NIL
@@ -863,10 +869,10 @@ NIL
 1
 
 BUTTON
-24
-64
-87
-97
+224
+149
+287
+182
 go
 go
 T
@@ -880,10 +886,10 @@ NIL
 0
 
 MONITOR
-20
-475
-195
-520
+220
+560
+395
+605
 NIL
 current-time-period
 17
@@ -891,10 +897,10 @@ current-time-period
 11
 
 BUTTON
-98
-20
-161
-53
+298
+105
+361
+138
 go
 go
 NIL
@@ -908,10 +914,10 @@ NIL
 1
 
 SLIDER
-25
-110
+225
 195
-143
+395
+228
 overcrowding-threshold
 overcrowding-threshold
 0
@@ -923,10 +929,10 @@ NIL
 HORIZONTAL
 
 PLOT
-815
-490
-1490
-795
+1015
+575
+1690
+880
 Shop Attendance
 Time
 Attendance
@@ -942,10 +948,10 @@ PENS
 "threshold" 1.0 0 -2674135 true "" ";; plot a threshold line -- an attendance level above this line makes the bar\n;; is unappealing, but below this line is appealing\nplot-pen-reset\nplotxy 0 overcrowding-threshold\nplotxy plot-x-max overcrowding-threshold"
 
 PLOT
-815
-250
-1155
-470
+1015
+335
+1355
+555
 mean-score
 NIL
 NIL
@@ -960,10 +966,10 @@ PENS
 "default" 1.0 0 -16777216 true "" "plot mean-score"
 
 MONITOR
-1620
-305
-1700
-350
+1820
+390
+1900
+435
 NIL
 min-all-scores
 2
@@ -971,10 +977,10 @@ min-all-scores
 11
 
 MONITOR
-1620
-360
-1700
-405
+1820
+445
+1900
+490
 NIL
 max-all-scores
 2
@@ -982,10 +988,10 @@ max-all-scores
 11
 
 PLOT
-210
-645
-800
-915
+410
+730
+1000
+1000
 number-of-agents-swtiching
 NIL
 NIL
@@ -1001,10 +1007,10 @@ PENS
 "switched slots and trip configurations" 1.0 0 -955883 true "" "plot num-agents-two-roll"
 
 MONITOR
-1620
-250
-1700
-295
+1820
+335
+1900
+380
 mean-score
 mean-score
 2
@@ -1012,10 +1018,10 @@ mean-score
 11
 
 MONITOR
-1503
-490
-1600
-535
+1703
+575
+1800
+620
 NIL
 mean-attendance
 2
@@ -1023,10 +1029,10 @@ mean-attendance
 11
 
 SLIDER
-24
-155
-194
-188
+224
+240
+394
+273
 num-agents
 num-agents
 0
@@ -1038,10 +1044,10 @@ NIL
 HORIZONTAL
 
 INPUTBOX
-98
-330
-193
-390
+298
+415
+393
+475
 min-score
 0.0
 1
@@ -1049,21 +1055,21 @@ min-score
 Number
 
 INPUTBOX
-98
-400
-193
-460
+298
+485
+393
+545
 ideal-score
-23.0
+23.5
 1
 0
 Number
 
 SWITCH
-97
-64
-192
-97
+297
+149
+392
+182
 adaptive?
 adaptive?
 0
@@ -1071,10 +1077,10 @@ adaptive?
 -1000
 
 MONITOR
-1620
-15
-1702
-60
+1820
+100
+1902
+145
 NIL
 mean-epsilon
 4
@@ -1082,10 +1088,10 @@ mean-epsilon
 11
 
 PLOT
-815
-15
-1155
-235
+1015
+100
+1355
+320
 mean-epsilon
 NIL
 NIL
@@ -1100,20 +1106,20 @@ PENS
 "default" 1.0 0 -16777216 true "" "plot mean-epsilon\n"
 
 CHOOSER
-24
-200
-194
-245
+224
+285
+394
+330
 epsilon-function
 epsilon-function
 "base" "log" "sigmoid"
 1
 
 MONITOR
-1620
-70
-1700
-115
+1820
+155
+1900
+200
 NIL
 min-epsilon
 4
@@ -1121,10 +1127,10 @@ min-epsilon
 11
 
 MONITOR
-1620
-125
-1690
-170
+1820
+210
+1890
+255
 NIL
 max-epsilon
 4
@@ -1132,10 +1138,10 @@ max-epsilon
 11
 
 MONITOR
-1710
-15
-1815
-60
+1910
+100
+2015
+145
 exploitation-ratio
 ( num-agents - num-agents-one-roll ) / num-agents
 17
@@ -1143,10 +1149,10 @@ exploitation-ratio
 11
 
 MONITOR
-1710
-70
-1815
-115
+1910
+155
+2015
+200
 exploration-ratio
 num-agents-one-roll / num-agents
 17
@@ -1154,10 +1160,10 @@ num-agents-one-roll / num-agents
 11
 
 PLOT
-1170
-250
-1610
-470
+1370
+335
+1810
+555
 Weekly Score Distribution
 NIL
 NIL
@@ -1172,10 +1178,10 @@ PENS
 "default" 2.0 1 -16777216 true "" " if ( current-time-period-index > 111 ) [ histogram [ weekly-score ] of turtles ] "
 
 PLOT
-1170
-15
-1610
-235
+1370
+100
+1810
+320
 Epsilon-Greedy Distribution
 NIL
 NIL
@@ -1190,10 +1196,10 @@ PENS
 "default" 0.05 1 -16777216 true "" " if ( current-time-period-index = 1 ) [ histogram [ epsilon-greedy ] of turtles ] "
 
 MONITOR
-21
-535
-196
-580
+221
+620
+396
+665
 NIL
 current-time-period-index
 17
@@ -1201,10 +1207,10 @@ current-time-period-index
 11
 
 MONITOR
-1620
-415
-1752
-460
+1820
+500
+1952
+545
 Unique Weekly Scores
 unique-scores
 17
@@ -1212,10 +1218,10 @@ unique-scores
 11
 
 MONITOR
-1620
-180
-1797
-225
+1820
+265
+1997
+310
 Unique Epsilon-Greedy values
 unique-epsilons
 17
@@ -1223,10 +1229,10 @@ unique-epsilons
 11
 
 INPUTBOX
-97
-260
-192
-320
+297
+345
+392
+405
 c
 0.25
 1
@@ -1234,10 +1240,10 @@ c
 Number
 
 PLOT
-1620
-490
-1975
-680
+1820
+575
+2175
+765
 Overcrowded Agents over time
 Time
 num-agents
@@ -1252,10 +1258,10 @@ PENS
 "default" 1.0 0 -16777216 true "" "plot overcrowded-agent"
 
 MONITOR
-1990
-490
-2112
-535
+2190
+575
+2312
+620
 NIL
 overcrowded-agent
 17
@@ -1263,10 +1269,10 @@ overcrowded-agent
 11
 
 MONITOR
-1505
-550
-1582
-595
+1705
+635
+1782
+680
 NIL
 attendance
 17
@@ -1274,10 +1280,10 @@ attendance
 11
 
 MONITOR
-815
-815
-957
-860
+1015
+900
+1157
+945
 NIL
 count-swapped-one-roll
 1
@@ -1285,10 +1291,10 @@ count-swapped-one-roll
 11
 
 MONITOR
-815
-870
-957
-915
+1015
+955
+1157
+1000
 NIL
 count-swapped-two-roll
 17
@@ -1296,10 +1302,10 @@ count-swapped-two-roll
 11
 
 MONITOR
-1990
-700
-2140
-745
+2190
+785
+2340
+830
 NIL
 num-overcrowded-timeslots
 17
@@ -1307,10 +1313,10 @@ num-overcrowded-timeslots
 11
 
 PLOT
-1620
-700
-1975
-890
+1820
+785
+2175
+975
 Overcrowded time slots over time
 NIL
 NIL
@@ -1325,10 +1331,10 @@ PENS
 "default" 1.0 0 -16777216 true "" "plot num-overcrowded-timeslots"
 
 MONITOR
-1920
-125
-2032
-170
+2120
+210
+2232
+255
 NIL
 exploitation-count
 17
